@@ -1,0 +1,310 @@
+using System;
+using System.Diagnostics;
+using System.Drawing;
+using System.Windows.Forms;
+using CPUIdleStabliser.Core;
+using CPUIdleStabliser.Infra;
+
+namespace CPUIdleStabliser.UI
+{
+    public class SettingsForm : Form
+    {
+        private readonly LoadController _controller;
+        private readonly UserSettings _settings;
+
+        private Label _statusLabel;
+        private Label _cpuUsageLabel;
+        private TrackBar _targetSlider;
+        private Label _targetLabel;
+        private CheckBox _ecoCheckBox;
+        private CheckBox _autostartCheckBox;
+        private Button _toggleButton;
+        private Button _aboutButton;
+        private Button _hideButton;
+
+        private System.Windows.Forms.Timer _uiTimer;
+
+        public SettingsForm(LoadController controller, UserSettings settings)
+        {
+            _controller = controller;
+            _settings = settings;
+
+            InitializeComponent();
+            
+            // Initial UI Update
+            UpdateStatus();
+            
+            // UI Update Timer
+            _uiTimer = new System.Windows.Forms.Timer { Interval = 1000 };
+            _uiTimer.Tick += (s, e) => UpdateCpuUsage();
+            _uiTimer.Start();
+        }
+
+        private void InitializeComponent()
+        {
+            this.Text = "CPUIdleStabliser";
+            this.Size = new Size(350, 450);
+            this.MinimumSize = new Size(300, 400); 
+            this.StartPosition = FormStartPosition.CenterScreen;
+            
+            if (File.Exists("app_icon.ico")) this.Icon = new Icon("app_icon.ico");
+            else this.Icon = SystemIcons.Shield;
+
+            // Main Table Layout
+            var mainLayout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                RowCount = 6,
+                ColumnCount = 1,
+                Padding = new Padding(20),
+                AutoSize = true
+            };
+            
+            // Row Styles
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Status
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Usage
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Slider
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Checkboxes
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // Buttons (Fill remaining)
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Hide Button
+
+            // 1. Status Label
+            _statusLabel = new Label
+            {
+                Text = "Status: STOPPED",
+                AutoSize = true,
+                Font = new Font(SystemFonts.MessageBoxFont.FontFamily, 10, FontStyle.Bold),
+                ForeColor = Color.DarkRed,
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Margin = new Padding(0, 0, 0, 10)
+            };
+            mainLayout.Controls.Add(_statusLabel, 0, 0);
+
+            // 2. CPU Usage Label
+            _cpuUsageLabel = new Label
+            {
+                Text = "Current App CPU Usage: 0.0%",
+                AutoSize = true,
+                ForeColor = Color.Gray,
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            mainLayout.Controls.Add(_cpuUsageLabel, 0, 1);
+
+            // 3. Slider Section (Table for Label + Slider + Value)
+            var sliderPanel = new TableLayoutPanel
+            {
+                AutoSize = true,
+                ColumnCount = 2,
+                RowCount = 2,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0, 20, 0, 0)
+            };
+            sliderPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            sliderPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+            var headerLabel = new Label
+            {
+                Text = "Target CPU Load",
+                AutoSize = true,
+                Font = new Font(SystemFonts.MessageBoxFont, FontStyle.Bold),
+                Margin = new Padding(0, 0, 0, 5)
+            };
+            sliderPanel.Controls.Add(headerLabel, 0, 0);
+            sliderPanel.SetColumnSpan(headerLabel, 2);
+
+            _targetSlider = new TrackBar
+            {
+                Minimum = 1,
+                Maximum = 20,
+                Value = (int)(_settings.TargetTotalPercent * 2),
+                TickStyle = TickStyle.None,
+                Dock = DockStyle.Fill
+            };
+            
+            _targetLabel = new Label
+            {
+                Text = $"{_settings.TargetTotalPercent:F1}%",
+                AutoSize = true,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(0, 5, 0, 0)
+            };
+
+            sliderPanel.Controls.Add(_targetSlider, 0, 1);
+            sliderPanel.Controls.Add(_targetLabel, 1, 1);
+            
+            _targetSlider.ValueChanged += (s, e) =>
+            {
+                double target = _targetSlider.Value / 2.0;
+                _targetLabel.Text = $"{target:F1}%";
+                if (_controller.IsRunning) ApplySettings();
+            };
+
+            mainLayout.Controls.Add(sliderPanel, 0, 2);
+
+            // 4. Checkboxes
+            var checkPanel = new FlowLayoutPanel
+            {
+                AutoSize = true,
+                FlowDirection = FlowDirection.TopDown,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0, 15, 0, 15)
+            };
+
+            _ecoCheckBox = new CheckBox
+            {
+                Text = "Eco Mode (Jitter)",
+                Checked = _settings.EcoMode,
+                AutoSize = true
+            };
+            _ecoCheckBox.Click += (s, e) => { if (_controller.IsRunning) ApplySettings(); };
+
+            _autostartCheckBox = new CheckBox 
+            { 
+                Text = "Start with Windows", 
+                Checked = _settings.StartWithWindows, 
+                AutoSize = true 
+            };
+            // Logic for autostart save is handled in FormClosing generally, or explicit save
+            
+            checkPanel.Controls.Add(_ecoCheckBox);
+            checkPanel.Controls.Add(_autostartCheckBox);
+            mainLayout.Controls.Add(checkPanel, 0, 3);
+
+            // 5. Buttons Section (Start/Stop and About)
+            var buttonPanel = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                RowCount = 2,
+                ColumnCount = 1,
+                AutoSize = true
+            };
+            buttonPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // Big Toggle Button
+            buttonPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // About Button
+
+            _toggleButton = new Button
+            {
+                Text = "START",
+                Font = new Font(SystemFonts.MessageBoxFont.FontFamily, 14, FontStyle.Bold),
+                Height = 60,
+                Dock = DockStyle.Top,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.ForestGreen,
+                ForeColor = Color.White,
+                Cursor = Cursors.Hand
+            };
+            _toggleButton.Click += (s, e) => ToggleStartStop();
+            buttonPanel.Controls.Add(_toggleButton, 0, 0);
+
+            _aboutButton = new Button
+            {
+                Text = "About",
+                AutoSize = true,
+                Dock = DockStyle.Top,
+                FlatStyle = FlatStyle.System,
+                Margin = new Padding(0, 10, 0, 0)
+            };
+            _aboutButton.Click += (s, e) => MessageBox.Show("CPUIdleStabliser\nDeveloped by cjdatadev\nMIT Licence", "About", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            buttonPanel.Controls.Add(_aboutButton, 0, 1);
+
+            mainLayout.Controls.Add(buttonPanel, 0, 4);
+
+            // 6. Hide Button
+            _hideButton = new Button
+            {
+                Text = "Hide to Tray",
+                Dock = DockStyle.Bottom,
+                Height = 30
+            };
+            _hideButton.Click += (s, e) => this.Close(); // TrayAppContext handles Hide on Close
+            mainLayout.Controls.Add(_hideButton, 0, 5);
+
+            this.Controls.Add(mainLayout);
+        }
+
+        private void ToggleStartStop()
+        {
+            if (_controller.IsRunning)
+            {
+                _controller.Stop();
+            }
+            else
+            {
+                ApplySettings();
+                _controller.Start(_settings.TargetTotalPercent, _settings.EcoMode);
+            }
+            UpdateStatus();
+        }
+
+        private void ApplySettings()
+        {
+             double target = _targetSlider.Value / 2.0;
+             bool eco = _ecoCheckBox.Checked;
+             _controller.UpdateSettings(target, eco);
+        }
+
+        private void UpdateStatus()
+        {
+            if (_controller.IsRunning)
+            {
+                _statusLabel.Text = $"Status: RUNNING ({_controller.CoreCount} threads)";
+                _statusLabel.ForeColor = Color.DarkGreen;
+                _toggleButton.Text = "STOP";
+                _toggleButton.BackColor = Color.Firebrick;
+            }
+            else
+            {
+                _statusLabel.Text = "Status: STOPPED";
+                _statusLabel.ForeColor = Color.DarkRed;
+                _toggleButton.Text = "START";
+                _toggleButton.BackColor = Color.ForestGreen;
+            }
+            UpdateCpuUsage();
+        }
+
+        private DateTime _lastCheckTime = DateTime.UtcNow;
+        private TimeSpan _lastProcessorTime;
+        private readonly Process _currentProcess = Process.GetCurrentProcess();
+
+        private void UpdateCpuUsage()
+        {
+            try 
+            {
+                var currentTime = DateTime.UtcNow;
+                var currentProcessorTime = _currentProcess.TotalProcessorTime;
+                
+                var timeDiff = (currentTime - _lastCheckTime).TotalMilliseconds;
+                var processorDiff = (currentProcessorTime - _lastProcessorTime).TotalMilliseconds;
+                
+                if (timeDiff > 0)
+                {
+                    double cpuUsage = (processorDiff / timeDiff) / Environment.ProcessorCount * 100.0;
+                    _cpuUsageLabel.Text = $"Current App CPU Usage: {cpuUsage:F1}%";
+                }
+                
+                _lastCheckTime = currentTime;
+                _lastProcessorTime = currentProcessorTime;
+            }
+            catch 
+            {
+                _cpuUsageLabel.Text = "Current App CPU Usage: -";
+            }
+        }
+
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            if (e.CloseReason == CloseReason.UserClosing)
+            {
+                // Save settings
+                _settings.TargetTotalPercent = _targetSlider.Value / 2.0;
+                _settings.EcoMode = _ecoCheckBox.Checked;
+                _settings.StartWithWindows = _autostartCheckBox.Checked;
+                
+                SettingsManager.Save(_settings);
+                SettingsManager.SetAutostart(_settings.StartWithWindows);
+            }
+            base.OnFormClosing(e);
+        }
+    }
+}
