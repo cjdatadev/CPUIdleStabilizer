@@ -18,6 +18,7 @@ namespace CPUIdleStabilizer.UI
         private Label _targetLabel;
         private CheckBox _ecoCheckBox;
         private CheckBox _autostartCheckBox;
+        private CheckBox _startMinimizedCheckBox;
         private Button _toggleButton;
         private Button _aboutButton;
         private Button _hideButton;
@@ -170,16 +171,49 @@ namespace CPUIdleStabilizer.UI
             };
             _ecoCheckBox.Click += (s, e) => { if (_controller.IsRunning) ApplySettings(); };
 
+            var autostartFlow = new FlowLayoutPanel
+            {
+                AutoSize = true,
+                FlowDirection = FlowDirection.LeftToRight,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0)
+            };
+
             _autostartCheckBox = new CheckBox 
             { 
                 Text = "Start with Windows", 
                 Checked = _settings.StartWithWindows, 
                 AutoSize = true 
             };
-            // Logic for autostart save is handled in FormClosing generally, or explicit save
+            _autostartCheckBox.CheckedChanged += (s, e) => HandleAutostartChanged();
             
+            var infoButton = new Button
+            {
+                Text = "?",
+                Width = 25,
+                Height = 25,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                Margin = new Padding(5, 0, 0, 0)
+            };
+            infoButton.FlatAppearance.BorderSize = 1;
+            infoButton.Click += (s, e) => ShowAutostartHelp();
+
+            autostartFlow.Controls.Add(_autostartCheckBox);
+            autostartFlow.Controls.Add(infoButton);
+
+            _startMinimizedCheckBox = new CheckBox
+            {
+                Text = "Start Minimized (System Tray)",
+                Checked = _settings.StartMinimized,
+                AutoSize = true,
+                Margin = new Padding(20, 0, 0, 0)
+            };
+            _startMinimizedCheckBox.Enabled = _settings.StartWithWindows;
+
             checkPanel.Controls.Add(_ecoCheckBox);
-            checkPanel.Controls.Add(_autostartCheckBox);
+            checkPanel.Controls.Add(autostartFlow);
+            checkPanel.Controls.Add(_startMinimizedCheckBox);
             mainLayout.Controls.Add(checkPanel, 0, 3);
 
             // 5. Buttons Section (Start/Stop and About)
@@ -215,12 +249,7 @@ namespace CPUIdleStabilizer.UI
                 FlatStyle = FlatStyle.System,
                 Margin = new Padding(0, 10, 0, 0)
             };
-            _aboutButton.Click += (s, e) => 
-            {
-                var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0";
-                var date = System.IO.File.GetLastWriteTime(System.Reflection.Assembly.GetExecutingAssembly().Location).ToShortDateString();
-                MessageBox.Show($"CPUIdleStabilizer v{v}\nDate: {date}\nDeveloped by cjdatadev\nMIT Licence", "About", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            };
+            _aboutButton.Click += (s, e) => new AboutForm(this.Icon).ShowDialog();
             buttonPanel.Controls.Add(_aboutButton, 0, 1);
 
             mainLayout.Controls.Add(buttonPanel, 0, 4);
@@ -307,6 +336,67 @@ namespace CPUIdleStabilizer.UI
             }
         }
 
+        private void HandleAutostartChanged()
+        {
+            _startMinimizedCheckBox.Enabled = _autostartCheckBox.Checked;
+            
+            if (_autostartCheckBox.Checked && !SettingsManager.IsRunningFromInstallFolder)
+            {
+                var result = MessageBox.Show(
+                    "To ensure the autostart link doesn't break if you move this file, the app can copy itself to your local AppData folder.\n\n" +
+                    "Would you like to 'install' it to AppData now?",
+                    "Stable Autostart Recommended",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (result == DialogResult.Yes)
+                {
+                    MigrateToAppData();
+                }
+            }
+        }
+
+        private void ShowAutostartHelp()
+        {
+            MessageBox.Show(
+                "Autostart Features Explained:\n\n" +
+                "1. Start with Windows: Automatically launches the app when you log in.\n\n" +
+                "2. Self-Installation: If you enable autostart, the app copies itself to %AppData%\\CPUIdleStabilizer.\\bin\\ so the shortcut remains valid even if you move this original executable.\n\n" +
+                "3. Start Minimized: Launches the app directly to the system tray (near the clock) without opening this window.",
+                "Autostart Help",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+        }
+
+        private void MigrateToAppData()
+        {
+            try
+            {
+                string targetDir = SettingsManager.InstallFolder;
+                Directory.CreateDirectory(targetDir);
+                
+                string exeName = Path.GetFileName(Application.ExecutablePath);
+                string targetPath = Path.Combine(targetDir, exeName);
+
+                // Copy ourselves if not there or different
+                if (!File.Exists(targetPath) || File.GetLastWriteTime(Application.ExecutablePath) > File.GetLastWriteTime(targetPath))
+                {
+                    File.Copy(Application.ExecutablePath, targetPath, true);
+                }
+
+                MessageBox.Show(
+                    $"Succesfully copied to:\n{targetPath}\n\nAutostart will now use this stable location.",
+                    "Migration Complete",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to copy to AppData: {ex.Message}", "Migration Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                _autostartCheckBox.Checked = false;
+            }
+        }
+
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             if (e.CloseReason == CloseReason.UserClosing)
@@ -315,9 +405,10 @@ namespace CPUIdleStabilizer.UI
                 _settings.TargetTotalPercent = _targetSlider.Value / 2.0;
                 _settings.EcoMode = _ecoCheckBox.Checked;
                 _settings.StartWithWindows = _autostartCheckBox.Checked;
+                _settings.StartMinimized = _startMinimizedCheckBox.Checked;
                 
                 SettingsManager.Save(_settings);
-                SettingsManager.SetAutostart(_settings.StartWithWindows);
+                SettingsManager.SetAutostart(_settings.StartWithWindows, _settings.StartMinimized);
             }
             base.OnFormClosing(e);
         }

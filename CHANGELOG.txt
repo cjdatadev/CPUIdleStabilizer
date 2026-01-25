@@ -1,0 +1,35 @@
+===============================================================================
+                                  CHANGELOG
+===============================================================================
+
+-------------------------------------------------------------------------------
+[ v1.0.1 ] - 2026-01-26
+-------------------------------------------------------------------------------
+
+[ FEATURES ]
+- Replaced simple "About" message box with a custom "About" dialog.
+- Added clickable links to GitHub Repository and Reddit Discussion.
+- Added "GitHub Star" request for satisfied users.
+- Updated documentation (README, LICENSE) to ASCII plain-text format for 
+  better compatibility and classic feel.
+
+[ IMPROVEMENTS ]
+- Standardized application branding across UI and CLI (CPUIdleStabilizer).
+- Improved CLI --help output with clear usage instructions and GitHub link.
+- Refined release packaging into discrete "Standalone" and "Lightweight" Zips.
+
+[ FIXED ]
+- Internal consistency in autostart registry keys.
+
+-------------------------------------------------------------------------------
+[ v1.0.0 ] - 2026-01-25
+-------------------------------------------------------------------------------
+
+- Initial public release.
+- Core CPU stabilization logic (PWM style load generator).
+- System tray integration and settings management.
+- Autostart with Windows support.
+- Eco Mode (load jittering) for resonance prevention.
+- Standalone and Lightweight distribution builds.
+
+===============================================================================

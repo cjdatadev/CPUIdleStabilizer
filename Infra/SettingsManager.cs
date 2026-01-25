@@ -9,12 +9,17 @@ namespace CPUIdleStabilizer.Infra
         public double TargetTotalPercent { get; set; } = 3.0;
         public bool EcoMode { get; set; } = false;
         public bool StartWithWindows { get; set; } = false;
+        public bool StartMinimized { get; set; } = false;
     }
 
     public static class SettingsManager
     {
         private static readonly string AppDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CPUIdleStabilizer");
         private static readonly string SettingsFile = Path.Combine(AppDataPath, "settings.json");
+        public static readonly string InstallFolder = Path.Combine(AppDataPath, "bin");
+
+        public static bool IsRunningFromInstallFolder => 
+            string.Equals(Path.GetDirectoryName(Application.ExecutablePath), InstallFolder, StringComparison.OrdinalIgnoreCase);
 
         public static UserSettings Load()
         {
@@ -45,7 +50,7 @@ namespace CPUIdleStabilizer.Infra
             }
         }
 
-        public static void SetAutostart(bool enable)
+        public static void SetAutostart(bool enable, bool minimized)
         {
             const string runKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
             try
@@ -53,7 +58,12 @@ namespace CPUIdleStabilizer.Infra
                 using var key = Registry.CurrentUser.OpenSubKey(runKey, true);
                 if (key != null)
                 {
-                    if (enable) key.SetValue("CPUIdleStabilizer", Application.ExecutablePath);
+                    if (enable)
+                    {
+                        string command = $"\"{Application.ExecutablePath}\"";
+                        if (minimized) command += " --minimized";
+                        key.SetValue("CPUIdleStabilizer", command);
+                    }
                     else
                     {
                         // Clean up both

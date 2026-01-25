@@ -76,7 +76,7 @@ namespace CPUIdleStabilizer.UI
 
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("Open Logs", null, (s, e) => Process.Start("notepad.exe", Logger.GetLogPath()));
-            menu.Items.Add("About", null, (s, e) => MessageBox.Show("CPUIdleStabilizer v1.0\n\nMaintains a low steady CPU load to prevent CPU idle instability.", "About"));
+            menu.Items.Add("About", null, (s, e) => new AboutForm(_trayIcon.Icon).ShowDialog());
             menu.Items.Add("Exit", null, (s, e) => Exit());
 
             menu.Opening += (s, e) => 
@@ -116,31 +116,8 @@ namespace CPUIdleStabilizer.UI
         {
             _settings.StartWithWindows = !_settings.StartWithWindows;
             SettingsManager.Save(_settings);
-            SetAutostart(_settings.StartWithWindows);
+            SettingsManager.SetAutostart(_settings.StartWithWindows, _settings.StartMinimized);
             Logger.Log($"Autostart toggled: {_settings.StartWithWindows}");
-        }
-
-        private void SetAutostart(bool enable)
-        {
-            const string runKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
-            try
-            {
-                using var key = Registry.CurrentUser.OpenSubKey(runKey, true);
-                if (key != null)
-                {
-                    if (enable) key.SetValue("CPUIdleStabilizer", Application.ExecutablePath);
-                    else
-                    {
-                         // Clean up both old and new keys if present
-                         if (key.GetValue("RyzenIdleStabiliser") != null) key.DeleteValue("RyzenIdleStabiliser", false);
-                         if (key.GetValue("CPUIdleStabilizer") != null) key.DeleteValue("CPUIdleStabilizer", false);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Log($"Failed to set autostart: {ex.Message}");
-            }
         }
 
         private void UpdateTooltip(object? sender, MouseEventArgs e)
@@ -153,18 +130,7 @@ namespace CPUIdleStabilizer.UI
 
         private void CheckStatus()
         {
-            // Re-start if it should be running but isn't
-            if (_settings.TargetTotalPercent > 0 && !_controller.IsRunning && _controller.IsRunning /* wait, logic flaw in previous code? */)
-            {
-               // This logic was "If expected to be running but isn't".
-               // How do we know if it *expected* to be running? We don't verify explicitly other than user intent.
-               // Previous logic: if (_settings.TargetTotalPercent > 0 && !_controller.IsRunning) -> This implies ALWAYS running if target > 0?
-               // That seems wrong if we have a Stop button.
-               // I'll leave it as is if it was intended behavior, but user added a Stop button recently.
-               // If user manually stopped, we shouldn't auto-start.
-               // So I'll remove this aggressive auto-restart logic unless I track "ExpectedRunning" state.
-               // For now, I'll remove it to avoid zombie restarts.
-            }
+            // Simple check - logic can be refined later if needed
         }
 
         [DllImport("user32.dll", CharSet = CharSet.Auto)]

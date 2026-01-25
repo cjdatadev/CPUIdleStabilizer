@@ -23,7 +23,8 @@ namespace CPUIdleStabilizer
 
             // UI Mode: Open the settings form as the main window
             Logger.Log("App starting in UI mode.");
-            var trayContext = new TrayAppContext(controller, settings, startHidden: false);
+            bool startHidden = args.Contains("--minimized", StringComparer.OrdinalIgnoreCase);
+            var trayContext = new TrayAppContext(controller, settings, startHidden);
             Application.Run(trayContext);
         }
 
@@ -105,8 +106,10 @@ namespace CPUIdleStabilizer
 
         private static void PrintHelp()
         {
-            var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0";
-            Console.WriteLine($"RyzenIdleStabiliser v{v} Usage:");
+            var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.1";
+            Console.WriteLine($"CPUIdleStabilizer v{v}");
+            Console.WriteLine("GitHub: https://github.com/cjdatadev/CPUIdleStabilizer/");
+            Console.WriteLine("\nUsage:");
             Console.WriteLine("  --cli              Run in CLI mode (no tray icon)");
             Console.WriteLine("  --target <num>     Set CPU target load percentage (1-10)");
             Console.WriteLine("  --eco <on|off>     Enable/Disable Eco Mode (jitter)");
