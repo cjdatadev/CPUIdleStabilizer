@@ -1,0 +1,28 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+publish/
+
+# Log files
+*.log
+build_log.txt
+
+# User-specific files
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio / VS Code
+.vscode/
+.vs/
+*.suo
+*.launch
+*.json
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Artifacts and Temp
+*.ico.tmp
