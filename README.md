@@ -9,7 +9,7 @@ Modern CPUs (especially Ryzen 5000/7000/9000 series and ensuring Intel C-State s
 
 <img src="assets/app_icon.png" width="128" alt="CPUIdleStabilizer"/>
 
-## Installation / v1.0.1 Builds
+## Installation / v1.0.2 Builds
 **GitHub Star:** If this tool has helped you, please consider giving it a star on [GitHub](https://github.com/cjdatadev/CPUIdleStabilizer/)!
 
 **Discussion:** Check out the original [Reddit thread](https://www.reddit.com/r/AMDHelp/comments/1qmag98/ryzen_5800x_b550_idle_crash_issue_created_a/) for background and community feedback.
@@ -17,13 +17,13 @@ Modern CPUs (especially Ryzen 5000/7000/9000 series and ensuring Intel C-State s
 There are two ways to download and use the application:
 
 ### 1. Standalone Version (Recommended for most users)
-*   **Version:** 1.0.1
+*   **Version:** 1.0.2
 *   **File:** `CPUIdleStabilizer.exe` (~80 MB)
 *   **Requirements:** None. It runs on any Windows 10/11 machine out of the box.
 *   **Details:** Includes the entire .NET runtime embedded within the file.
 
 ### 2. Lightweight Version
-*   **Version:** 1.0.1
+*   **Version:** 1.0.2
 *   **File:** `CPUIdleStabilizer.exe` (~3 MB)
 *   **Requirements:** Requires **[.NET 8 Desktop Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)** installed.
 *   **Details:** Much smaller file size, but you must have the runtime installed separately.

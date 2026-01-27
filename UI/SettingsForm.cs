@@ -36,6 +36,20 @@ namespace CPUIdleStabilizer.UI
             
             // Initial UI Update
             UpdateStatus();
+
+            // Check for autostart migration if enabled but not installed
+            if (_settings.StartWithWindows && !SettingsManager.IsRunningFromInstallFolder)
+            {
+                this.Load += (s, e) => {
+                    // Slight delay to ensure form is visible
+                    System.Windows.Forms.Timer migrationDelay = new System.Windows.Forms.Timer { Interval = 500 };
+                    migrationDelay.Tick += (st, et) => {
+                        migrationDelay.Stop();
+                        HandleAutostartChanged();
+                    };
+                    migrationDelay.Start();
+                };
+            }
             
             // UI Update Timer
             _uiTimer = new System.Windows.Forms.Timer { Interval = 1000 };
@@ -149,6 +163,8 @@ namespace CPUIdleStabilizer.UI
             {
                 double target = _targetSlider.Value / 2.0;
                 _targetLabel.Text = $"{target:F1}%";
+                _settings.TargetTotalPercent = target;
+                SettingsManager.Save(_settings);
                 if (_controller.IsRunning) ApplySettings();
             };
 
@@ -169,7 +185,12 @@ namespace CPUIdleStabilizer.UI
                 Checked = _settings.EcoMode,
                 AutoSize = true
             };
-            _ecoCheckBox.Click += (s, e) => { if (_controller.IsRunning) ApplySettings(); };
+            _ecoCheckBox.Click += (s, e) => 
+            { 
+                _settings.EcoMode = _ecoCheckBox.Checked;
+                SettingsManager.Save(_settings);
+                if (_controller.IsRunning) ApplySettings(); 
+            };
 
             var autostartFlow = new FlowLayoutPanel
             {
@@ -185,7 +206,13 @@ namespace CPUIdleStabilizer.UI
                 Checked = _settings.StartWithWindows, 
                 AutoSize = true 
             };
-            _autostartCheckBox.CheckedChanged += (s, e) => HandleAutostartChanged();
+            _autostartCheckBox.Click += (s, e) => 
+            {
+                _settings.StartWithWindows = _autostartCheckBox.Checked;
+                SettingsManager.Save(_settings);
+                SettingsManager.SetAutostart(_settings.StartWithWindows, _settings.StartMinimized);
+                HandleAutostartChanged();
+            };
             
             var infoButton = new Button
             {
@@ -210,6 +237,12 @@ namespace CPUIdleStabilizer.UI
                 Margin = new Padding(20, 0, 0, 0)
             };
             _startMinimizedCheckBox.Enabled = _settings.StartWithWindows;
+            _startMinimizedCheckBox.Click += (s, e) => 
+            {
+                _settings.StartMinimized = _startMinimizedCheckBox.Checked;
+                SettingsManager.Save(_settings);
+                SettingsManager.SetAutostart(_settings.StartWithWindows, _settings.StartMinimized);
+            };
 
             checkPanel.Controls.Add(_ecoCheckBox);
             checkPanel.Controls.Add(autostartFlow);
@@ -304,7 +337,34 @@ namespace CPUIdleStabilizer.UI
                 _toggleButton.Text = "START";
                 _toggleButton.BackColor = Color.ForestGreen;
             }
+            SyncSettingsToUI();
             UpdateCpuUsage();
+        }
+
+        private void SyncSettingsToUI()
+        {
+            // Sync UI controls with current settings (in case they changed via tray menu)
+            if (_targetSlider.Value != (int)(_settings.TargetTotalPercent * 2))
+            {
+                _targetSlider.Value = (int)(_settings.TargetTotalPercent * 2);
+                _targetLabel.Text = $"{_settings.TargetTotalPercent:F1}%";
+            }
+            
+            if (_ecoCheckBox.Checked != _settings.EcoMode)
+            {
+                _ecoCheckBox.Checked = _settings.EcoMode;
+            }
+
+            if (_autostartCheckBox.Checked != _settings.StartWithWindows)
+            {
+                _autostartCheckBox.Checked = _settings.StartWithWindows;
+                _startMinimizedCheckBox.Enabled = _settings.StartWithWindows;
+            }
+
+            if (_startMinimizedCheckBox.Checked != _settings.StartMinimized)
+            {
+                _startMinimizedCheckBox.Checked = _settings.StartMinimized;
+            }
         }
 
         private DateTime _lastCheckTime = DateTime.UtcNow;
@@ -384,8 +444,11 @@ namespace CPUIdleStabilizer.UI
                     File.Copy(Application.ExecutablePath, targetPath, true);
                 }
 
+                // Update registry to point to the NEW stable location
+                SettingsManager.SetAutostart(true, _startMinimizedCheckBox.Checked, targetPath);
+
                 MessageBox.Show(
-                    $"Succesfully copied to:\n{targetPath}\n\nAutostart will now use this stable location.",
+                    $"Succesfully copied to:\n{targetPath}\n\nAutostart has been configured to use this stable location.",
                     "Migration Complete",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
@@ -399,17 +462,14 @@ namespace CPUIdleStabilizer.UI
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
-            if (e.CloseReason == CloseReason.UserClosing)
-            {
-                // Save settings
-                _settings.TargetTotalPercent = _targetSlider.Value / 2.0;
-                _settings.EcoMode = _ecoCheckBox.Checked;
-                _settings.StartWithWindows = _autostartCheckBox.Checked;
-                _settings.StartMinimized = _startMinimizedCheckBox.Checked;
-                
-                SettingsManager.Save(_settings);
-                SettingsManager.SetAutostart(_settings.StartWithWindows, _settings.StartMinimized);
-            }
+            // Remove UserClosing check to ensure we save on Windows shutdown/logoff too
+            _settings.TargetTotalPercent = _targetSlider.Value / 2.0;
+            _settings.EcoMode = _ecoCheckBox.Checked;
+            _settings.StartWithWindows = _autostartCheckBox.Checked;
+            _settings.StartMinimized = _startMinimizedCheckBox.Checked;
+            
+            SettingsManager.Save(_settings);
+            SettingsManager.SetAutostart(_settings.StartWithWindows, _settings.StartMinimized);
             base.OnFormClosing(e);
         }
     }

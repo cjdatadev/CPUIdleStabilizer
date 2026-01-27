@@ -11,10 +11,12 @@ namespace CPUIdleStabilizer
         {
             ApplicationConfiguration.Initialize();
 
+            SettingsManager.CleanupLegacyData();
             var settings = SettingsManager.Load();
             var controller = new LoadController();
 
             // Handle CLI arguments
+            bool isAutostart = args.Contains("--autostart", StringComparer.OrdinalIgnoreCase);
             if (args.Length > 0 && args.Contains("--cli"))
             {
                 HandleCli(args, controller, settings);
@@ -22,9 +24,9 @@ namespace CPUIdleStabilizer
             }
 
             // UI Mode: Open the settings form as the main window
-            Logger.Log("App starting in UI mode.");
+            Logger.Log($"App starting in UI mode. Autostart: {isAutostart}");
             bool startHidden = args.Contains("--minimized", StringComparer.OrdinalIgnoreCase);
-            var trayContext = new TrayAppContext(controller, settings, startHidden);
+            var trayContext = new TrayAppContext(controller, settings, startHidden, isAutostart);
             Application.Run(trayContext);
         }
 
@@ -54,9 +56,14 @@ namespace CPUIdleStabilizer
                     case "--autostart":
                         if (i + 1 < args.Length)
                         {
-                            bool enable = args[i + 1].ToLower() == "on";
-                            UpdateAutostart(enable);
-                            i++;
+                            string val = args[i + 1].ToLower();
+                            if (val == "on" || val == "off")
+                            {
+                                bool enable = val == "on";
+                                SettingsManager.SetAutostart(enable, settings.StartMinimized);
+                                i++;
+                            }
+                            // else it's just the flag --autostart without a value, which we handle above
                         }
                         break;
                     case "--logpath":
@@ -69,7 +76,7 @@ namespace CPUIdleStabilizer
             }
 
             Logger.Log($"Starting in CLI mode. Target: {target}%, Eco: {eco}");
-            Console.WriteLine($"RyzenIdleStabiliser CLI Mode\nTarget: {target}%\nEco: {eco}\nPress Ctrl+C to stop.");
+            Console.WriteLine($"CPUIdleStabilizer CLI Mode\nTarget: {target}%\nEco: {eco}\nPress Ctrl+C to stop.");
             
             controller.Start(target, eco);
             
@@ -84,24 +91,6 @@ namespace CPUIdleStabilizer
             
             controller.Stop();
             Logger.Log("CLI Mode stopped.");
-        }
-
-        private static void UpdateAutostart(bool enable)
-        {
-            const string runKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
-            try
-            {
-                using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(runKey, true);
-                if (key != null)
-                {
-                    if (enable) key.SetValue("RyzenIdleStabiliser", Application.ExecutablePath);
-                    else key.DeleteValue("RyzenIdleStabiliser", false);
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Log($"CLI failed to set autostart: {ex.Message}");
-            }
         }
 
         private static void PrintHelp()

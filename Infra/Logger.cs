@@ -2,7 +2,7 @@ namespace CPUIdleStabilizer.Infra
 {
     public static class Logger
     {
-        private static readonly string AppDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RyzenIdleStabiliser");
+        private static readonly string AppDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CPUIdleStabilizer");
         private static readonly string LogDir = Path.Combine(AppDataPath, "logs");
         private static readonly string LogFile = Path.Combine(LogDir, "app.log");
         private static readonly object _lock = new object();
@@ -13,7 +13,24 @@ namespace CPUIdleStabilizer.Infra
         {
             try
             {
-                Directory.CreateDirectory(LogDir);
+                if (!Directory.Exists(LogDir)) Directory.CreateDirectory(LogDir);
+
+                // Migration check: If new log directory is empty, look for old logs
+                string oldAppDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RyzenIdleStabiliser");
+                string oldLogDir = Path.Combine(oldAppDataPath, "logs");
+
+                if (Directory.Exists(oldLogDir) && Directory.GetFiles(LogDir).Length == 0)
+                {
+                    foreach (string file in Directory.GetFiles(oldLogDir))
+                    {
+                        try
+                        {
+                            string dest = Path.Combine(LogDir, Path.GetFileName(file));
+                            File.Move(file, dest, true);
+                        }
+                        catch { }
+                    }
+                }
             }
             catch { }
         }

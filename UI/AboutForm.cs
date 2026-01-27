@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Reflection;
 using System.Windows.Forms;
+using System.IO;
+using CPUIdleStabilizer.Infra;
 
 namespace CPUIdleStabilizer.UI
 {
@@ -16,7 +18,7 @@ namespace CPUIdleStabilizer.UI
         private void InitializeComponent(Icon appIcon)
         {
             this.Text = "About CPUIdleStabilizer";
-            this.Size = new Size(400, 320);
+            this.Size = new Size(400, 360);
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
@@ -33,8 +35,8 @@ namespace CPUIdleStabilizer.UI
             };
 
             // Version info
-            var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.1";
-            var date = System.IO.File.GetLastWriteTime(Assembly.GetExecutingAssembly().Location).ToShortDateString();
+            var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.2";
+            var date = "2026-01-27"; // Hardcoded for single-file compatibility
 
             var titleLabel = new Label
             {
@@ -95,9 +97,39 @@ namespace CPUIdleStabilizer.UI
             {
                 Text = "Close",
                 DialogResult = DialogResult.OK,
-                Anchor = AnchorStyles.None,
-                Width = 80
+                Width = 90,
+                Height = 30,
+                FlatStyle = FlatStyle.System
             };
+
+            var removeButton = new Button
+            {
+                Text = "Remove Application",
+                AutoSize = true,
+                FlatStyle = FlatStyle.Flat,
+                ForeColor = Color.Firebrick,
+                Cursor = Cursors.Hand,
+                Height = 30
+            };
+            removeButton.FlatAppearance.BorderSize = 0;
+            removeButton.Click += (s, e) => HandleRemoveApplication();
+
+            var buttonPanel = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 1,
+                Height = 40,
+                Margin = new Padding(0, 15, 0, 0)
+            };
+            buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            
+            buttonPanel.Controls.Add(removeButton, 0, 0);
+            buttonPanel.Controls.Add(closeButton, 1, 0);
+            
+            removeButton.Anchor = AnchorStyles.Left;
+            closeButton.Anchor = AnchorStyles.Right;
 
             mainLayout.Controls.Add(titleLabel);
             mainLayout.Controls.Add(versionLabel);
@@ -113,11 +145,36 @@ namespace CPUIdleStabilizer.UI
             linkPanel.Controls.Add(githubLink);
             linkPanel.Controls.Add(redditLink);
             mainLayout.Controls.Add(linkPanel);
-            
-            mainLayout.Controls.Add(closeButton);
+
+            mainLayout.Controls.Add(buttonPanel);
 
             this.Controls.Add(mainLayout);
             this.AcceptButton = closeButton;
+        }
+
+        private void HandleRemoveApplication()
+        {
+            var confirm1 = MessageBox.Show(
+                "Are you sure you want to remove all settings, logs, and autostart configuration?",
+                "Remove Application",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (confirm1 != DialogResult.Yes) return;
+
+            var confirm2 = MessageBox.Show(
+                "This will stop the service and clean up all files, including those in AppData.\n\n" +
+                "If this app was 'installed' to AppData, it will delete itself completely after closing.\n\n" +
+                "Continue?",
+                "Final Confirmation",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (confirm2 == DialogResult.Yes)
+            {
+                SettingsManager.Uninstall();
+                Application.Exit();
+            }
         }
 
         private void OpenUrl(string url)

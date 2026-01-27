@@ -14,7 +14,7 @@ namespace CPUIdleStabilizer.UI
         private readonly System.Windows.Forms.Timer _statusTimer;
         private SettingsForm? _settingsForm;
 
-        public TrayAppContext(LoadController controller, UserSettings settings, bool startHidden)
+        public TrayAppContext(LoadController controller, UserSettings settings, bool startHidden, bool isAutostart)
         {
             _controller = controller;
             _settings = settings;
@@ -40,11 +40,16 @@ namespace CPUIdleStabilizer.UI
             {
                 ShowSettings();
             }
-            else if (_settings.TargetTotalPercent > 0 && _settings.StartWithWindows)
+
+            // Always start the load if it was an autostart (regardless of minimized state)
+            // or if we started hidden (legacy behavior, but still valid)
+            if (isAutostart || startHidden)
             {
-                // Only auto-start if we are starting hidden AND it's enabled
-                _controller.Start(_settings.TargetTotalPercent, _settings.EcoMode);
-                Logger.Log($"App auto-started from hidden. Target: {settings.TargetTotalPercent}%");
+                if (_settings.TargetTotalPercent > 0 && _settings.StartWithWindows)
+                {
+                    _controller.Start(_settings.TargetTotalPercent, _settings.EcoMode);
+                    Logger.Log($"App started load automatically. Autostart: {isAutostart}, Hidden: {startHidden}, Target: {_settings.TargetTotalPercent}%");
+                }
             }
         }
 
