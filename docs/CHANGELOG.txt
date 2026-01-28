@@ -3,6 +3,16 @@
 ===============================================================================
 
 -------------------------------------------------------------------------------
+[ v1.0.4 ] - 2026-01-28
+-------------------------------------------------------------------------------
+
+[ FIXED ]
+- Resolved issue where CPU load would fail to start automatically on Windows boot.
+- Added single-instance protection using a Global Mutex to prevent duplicate icons.
+- Improved CPU workload intensity for better visibility in monitoring tools.
+- Fixed redundant preference checks during startup.
+
+-------------------------------------------------------------------------------
 [ v1.0.2 ] - 2026-01-27
 -------------------------------------------------------------------------------
 

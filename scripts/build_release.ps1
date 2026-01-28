@@ -5,7 +5,7 @@ $scriptDir = $PSScriptRoot
 $rootDir = (Get-Item $scriptDir).Parent.FullName
 Set-Location $rootDir
 
-$version = "v1.0.2"
+$version = "v1.0.4"
 $zipsDir = ".\zips"
 $publishDir = ".\publish"
 $docsDir = ".\docs"

@@ -72,6 +72,7 @@ namespace CPUIdleStabilizer.Core
             }
 
             IsRunning = true;
+            Logger.Log($"Workload started on {CoreCount} cores at {TargetTotalPercent}% target.");
         }
 
         public void Stop()

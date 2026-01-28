@@ -58,11 +58,12 @@ namespace CPUIdleStabilizer.Core
                 {
                     if (_token.IsCancellationRequested) return;
                     
-                    // Light computation pulse
-                    for (int i = 0; i < 10; i++)
+                    // Slightly more intensive computation to ensure visibility
+                    // and prevent JIT from optimizing away empty loops
+                    double val = _random.NextDouble();
+                    for (int i = 0; i < 50; i++)
                     {
-                        double a = _random.NextDouble();
-                        _ = Math.Sqrt(a * a + 1.0);
+                        val = Math.Sin(val) * Math.Cos(val);
                     }
                 }
 

@@ -66,7 +66,7 @@ namespace CPUIdleStabilizer.UI
             this.MaximizeBox = false;
             this.StartPosition = FormStartPosition.CenterScreen;
             
-            var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0";
+            var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.4";
             this.Text = $"CPUIdleStabilizer v{version}";
 
             if (this.Icon == null) this.Icon = SystemIcons.Shield;

@@ -2,6 +2,7 @@
 [Bb]in/
 [Oo]bj/
 publish/
+zips/
 
 # Log files
 *.log
@@ -26,3 +27,6 @@ Desktop.ini
 
 # Artifacts and Temp
 *.ico.tmp
+
+# AI Instructions
+.ai/

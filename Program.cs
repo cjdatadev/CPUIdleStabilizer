@@ -6,28 +6,46 @@ namespace CPUIdleStabilizer
 {
     internal static class Program
     {
+        private static Mutex? _mutex;
+        
         [STAThread]
         static void Main(string[] args)
         {
-            ApplicationConfiguration.Initialize();
-
-            SettingsManager.CleanupLegacyData();
-            var settings = SettingsManager.Load();
-            var controller = new LoadController();
-
-            // Handle CLI arguments
-            bool isAutostart = args.Contains("--autostart", StringComparer.OrdinalIgnoreCase);
-            if (args.Length > 0 && args.Contains("--cli"))
+            _mutex = new Mutex(true, "Global\\CPUIdleStabilizer_Mutex", out bool createdNew);
+            if (!createdNew)
             {
-                HandleCli(args, controller, settings);
+                // Already running
                 return;
             }
 
-            // UI Mode: Open the settings form as the main window
-            Logger.Log($"App starting in UI mode. Autostart: {isAutostart}");
-            bool startHidden = args.Contains("--minimized", StringComparer.OrdinalIgnoreCase);
-            var trayContext = new TrayAppContext(controller, settings, startHidden, isAutostart);
-            Application.Run(trayContext);
+            try
+            {
+                ApplicationConfiguration.Initialize();
+
+                SettingsManager.CleanupLegacyData();
+                var settings = SettingsManager.Load();
+                var controller = new LoadController();
+
+                // Handle CLI arguments
+                bool isAutostart = args.Contains("--autostart", StringComparer.OrdinalIgnoreCase);
+                if (args.Length > 0 && args.Contains("--cli"))
+                {
+                    HandleCli(args, controller, settings);
+                    return;
+                }
+
+                // UI Mode: Open the settings form as the main window
+                var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.4";
+                Logger.Log($"App v{version} starting in UI mode. Autostart: {isAutostart}");
+                bool startHidden = args.Contains("--minimized", StringComparer.OrdinalIgnoreCase);
+                var trayContext = new TrayAppContext(controller, settings, startHidden, isAutostart);
+                Application.Run(trayContext);
+            }
+            finally
+            {
+                _mutex.ReleaseMutex();
+                _mutex.Dispose();
+            }
         }
 
         private static void HandleCli(string[] args, LoadController controller, UserSettings settings)
@@ -95,7 +113,7 @@ namespace CPUIdleStabilizer
 
         private static void PrintHelp()
         {
-            var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.1";
+            var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.4";
             Console.WriteLine($"CPUIdleStabilizer v{v}");
             Console.WriteLine("GitHub: https://github.com/cjdatadev/CPUIdleStabilizer/");
             Console.WriteLine("\nUsage:");

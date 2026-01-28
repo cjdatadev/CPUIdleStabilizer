@@ -42,10 +42,11 @@ namespace CPUIdleStabilizer.UI
             }
 
             // Always start the load if it was an autostart (regardless of minimized state)
-            // or if we started hidden (legacy behavior, but still valid)
+            // If isAutostart is true, we ignore the settings.StartWithWindows check because
+            // the very presence of this flag means we SHOULD be starting.
             if (isAutostart || startHidden)
             {
-                if (_settings.TargetTotalPercent > 0 && _settings.StartWithWindows)
+                if (_settings.TargetTotalPercent > 0 && (isAutostart || _settings.StartWithWindows))
                 {
                     _controller.Start(_settings.TargetTotalPercent, _settings.EcoMode);
                     Logger.Log($"App started load automatically. Autostart: {isAutostart}, Hidden: {startHidden}, Target: {_settings.TargetTotalPercent}%");
